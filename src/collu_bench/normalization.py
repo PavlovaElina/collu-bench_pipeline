@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+"""
+Shared normalization interface for benchmark programs.
+
+Python and Java currently use tree-sitter-backed normalization, while Racket is
+adapted through a custom lexer-based normalizer.  This split exists because the
+Racket workflow needs to stay tolerant to partially malformed generated code and
+to preserve progress even when no full parser can be trusted to succeed.
+"""
+
 import keyword
 from dataclasses import dataclass
 from typing import Dict, List
@@ -88,6 +97,10 @@ class RacketProgramNormalizer(ProgramNormalizer):
     """
     Adapter that plugs the standalone Racket normalizer into the shared
     NormalizedProgram interface used by the rest of the pipeline.
+
+    This adapter is what lets the rest of the benchmark treat Racket like any
+    other supported language, even though the underlying implementation is not
+    tree-sitter based.
     """
 
     def __init__(self):

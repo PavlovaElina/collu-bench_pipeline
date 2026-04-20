@@ -19,6 +19,11 @@ Example:
         --dtype float16 ^
         --max-new-tokens 256 ^
         --attempts 5
+
+The script assumes that Racket itself is installed and visible in `PATH`,
+because every candidate is validated by invoking
+`scripts/run_racket_humaneval_tests.py`, which in turn shells out to the local
+`racket` executable.
 """
 
 from __future__ import annotations
@@ -207,7 +212,13 @@ def load_model_and_tokenizer(
 
 
 def build_prompt(question: str, entry_point: str) -> str:
-    """Build a strict prompt for generating Racket GT."""
+    """
+    Build a strict prompt for generating Racket GT.
+
+    The prompt asks for executable `#lang racket` code rather than a natural
+    language explanation, because the downstream validator expects a module that
+    can be imported and tested immediately.
+    """
     return (
         "You are given a programming task originally written for Python.\n"
         "Implement the required function in Racket.\n"
@@ -374,7 +385,13 @@ def balance_racket_brackets(text: str) -> str:
 
 
 def cleanup_model_output(raw_output: str, tokens: list[str], entry_point: str) -> str:
-    """Clean raw generation into executable Racket code."""
+    """
+    Clean raw generation into executable Racket code.
+
+    This recovery step is especially valuable for Racket outputs, where an
+    otherwise correct solution may become non-runnable if the model adds one
+    stray explanation line or leaves a parenthesis unmatched.
+    """
     import re
 
     decoded = raw_output.replace("\r\n", "\n").replace("\r", "\n").strip()
@@ -505,6 +522,9 @@ def run_tests_for_candidate(
 
     Returns:
         (passed, stdout, stderr, exit_code)
+
+    The candidate is written to a temporary `.rkt` file and evaluated through
+    the same native-Racket harness used later by the main benchmark.
     """
     with tempfile.TemporaryDirectory(prefix="racket_gt_candidate_") as tmpdir:
         tmpdir_path = Path(tmpdir)

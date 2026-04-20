@@ -17,6 +17,18 @@ Input:
 Output:
     configs/data/racket_from_humaneval_hybrid.jsonl
     artifacts/racket_from_humaneval_hybrid_failures.json
+
+The resulting JSONL is the first stage of the Racket benchmark workflow.  Each
+row contains:
+- an English prompt rewritten to request a `#lang racket` implementation
+- the original Python prompt/tests for traceability
+- a generated `racket_test_module` that can later be executed with the local
+  `racket` command via `scripts/run_racket_humaneval_tests.py`
+
+Typical usage:
+    python scripts/build_racket_from_humaneval_hybrid.py ^
+        --input configs/data/HumanEval.jsonl ^
+        --output configs/data/racket_from_humaneval_hybrid.jsonl
 """
 
 from __future__ import annotations
@@ -225,6 +237,10 @@ def translate_humaneval_tests_to_racket(
 ) -> list[TranslatedTestCase]:
     """
     Deterministically translate Python HumanEval tests into Racket checks.
+
+    The translation intentionally targets the RackUnit surface syntax because
+    RackUnit gives us a stable, process-level notion of success/failure when the
+    generated module is later executed by the `racket` interpreter.
     """
     try:
         tree = ast.parse(python_tests)
@@ -396,6 +412,11 @@ def build_racket_test_module_from_cases(translated_cases: list[TranslatedTestCas
     Build a strict rackunit/text-ui module.
 
     This guarantees correct pass/fail exit codes.
+
+    The returned source is meant to be saved as `runner.rkt` beside a
+    candidate `solution.rkt` file and then executed with:
+
+        racket runner.rkt
     """
     test_case_lines = []
     for idx, case in enumerate(translated_cases, start=1):

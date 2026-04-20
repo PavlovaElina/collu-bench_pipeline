@@ -11,6 +11,17 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 from .config import LLMConfig
 from .prompt import PromptPayload
 
+"""
+LLM client implementations and generation postprocessing.
+
+The Racket-specific helpers in this module are important because generative
+models frequently emit partially formatted answers for Lisp-family languages:
+Markdown fences, explanatory preambles, visible tokenizer markers, or code with
+unbalanced delimiters.  The cleanup path attempts to recover an executable
+`#lang racket` module without changing the intended program more than
+necessary.
+"""
+
 
 @dataclass
 class LLMGeneration:
@@ -248,6 +259,10 @@ def _postprocess_generated_text(
 ) -> str:
     """
     Generic postprocessing with an extra cleanup path for Racket prompts.
+
+    Racket is singled out here because parenthesized syntax is especially
+    sensitive to even small formatting artifacts introduced by chat-oriented
+    models.
     """
     text = raw_text.strip()
 
@@ -428,6 +443,14 @@ def _balance_racket_brackets(text: str) -> str:
 
 
 def _cleanup_racket_output(raw_output: str, token_strings: List[str]) -> str:
+    """
+    Convert a raw model response into a minimal executable Racket module.
+
+    The cleanup order reflects the error profile observed in practice for
+    Racket generation: remove chat prose, isolate the code region, keep only
+    balanced forms, and finally restore a `#lang racket` header if the model
+    omitted it.
+    """
     decoded = raw_output.replace("\r\n", "\n").replace("\r", "\n").strip()
     decoded = _normalize_visible_token_markers(decoded)
 

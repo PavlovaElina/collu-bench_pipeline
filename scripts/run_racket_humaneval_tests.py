@@ -15,6 +15,11 @@ It:
     - runner.rkt
 - executes the runner with the local `racket` executable
 - exits with code 0 when tests pass
+
+Operationally, this script is the bridge between Python orchestration and the
+Racket runtime.  The benchmark pipeline can therefore stay language-agnostic at
+the top level while still evaluating candidate Racket modules with native
+RackUnit semantics underneath.
 """
 
 from __future__ import annotations
@@ -99,6 +104,11 @@ def ensure_lang_header(code: str) -> str:
 def ensure_provide_all_defined_out(code: str) -> str:
     """
     Ensure solution.rkt exports all defined names so the runner can require them.
+
+    This is important for Racket because a module does not automatically expose
+    its internal bindings to another module.  By injecting
+    `(provide (all-defined-out))`, the generated test runner can import the
+    candidate function regardless of how the model structured the file.
     """
     normalized = normalize_newlines(code)
 
@@ -162,7 +172,13 @@ def run_racket_tests(
     working_directory: Path,
     timeout: int,
 ) -> subprocess.CompletedProcess[str]:
-    """Execute the generated runner module."""
+    """
+    Execute the generated runner module with the system `racket` binary.
+
+    A direct `racket runner.rkt` invocation is sufficient because `runner.rkt`
+    already requires RackUnit, imports `solution.rkt`, and exits with a
+    meaningful process status.
+    """
     return subprocess.run(
         [racket_path, str(runner_path)],
         text=True,

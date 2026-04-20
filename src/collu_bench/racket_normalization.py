@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+"""
+Normalization utilities specialized for generated Racket code.
+
+The broader benchmark uses normalization before comparing candidate solutions to
+canonical references.  Racket is handled with a lightweight lexer rather than a
+full parser because benchmark outputs often contain incomplete programs,
+hallucinated prose, or minor syntax damage.  A tolerant lexical normalizer is
+therefore more robust than an AST-based pass for this stage of the pipeline.
+"""
+
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
@@ -184,6 +194,11 @@ class RacketNormalizer:
     - booleans
     - delimiters
     - built-ins / reserved words
+
+    This means that two Racket programs that differ only in user-chosen
+    identifier names, spacing, or end-of-line comments should collapse to the
+    same normalized surface form, which is useful for similarity-based
+    evaluation.
     """
 
     _identifier_regex = re.compile(r"^[^\d\W][\w!?+\-*/<>=:$%&~^.@]*$", re.UNICODE)
@@ -230,6 +245,11 @@ class RacketNormalizer:
 
         Racket comments start with ';' and continue to end of line.
         We only handle line comments here.
+
+        The implementation deliberately ignores block comments such as `#| |#`.
+        Those are uncommon in generated benchmark solutions, whereas `;` line
+        comments appear frequently in model outputs and are easy to strip
+        safely.
         """
         result_lines: List[str] = []
         for line in code.split("\n"):
@@ -275,6 +295,10 @@ class RacketNormalizer:
         - strings as atomic tokens
         - symbols/identifiers/operators as atomic tokens
         - quote prefixes as separate tokens
+
+        Treating quote prefixes (`'`, `` ` ``, `,`) as standalone tokens makes
+        it possible to reconstruct readable quoted forms such as `'(1 2 3)`
+        without introducing parser dependencies.
         """
         tokens: List[str] = []
         i = 0

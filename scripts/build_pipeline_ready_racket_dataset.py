@@ -13,6 +13,11 @@ Output:
 
 The result is designed to be consumed by the existing general pipeline.py
 through source: jsonl.
+
+In other words, this script converts the Racket-specific preparation artifacts
+into the same generic schema that the rest of the evaluation stack already
+understands.  After this step, the Racket benchmark can be launched with the
+ordinary pipeline configuration machinery.
 """
 
 from __future__ import annotations
@@ -149,6 +154,10 @@ def build_pipeline_row(
 
     Output schema is aligned with the generic jsonl dataset loader expected by
     the general pipeline.
+
+    For Racket, the `answer` field stores an executable `#lang racket` module
+    and the original `racket_test_module` is preserved so that future reruns can
+    reproduce the exact validation conditions.
     """
     ground_truth = gt_row["ground_truth"]
 

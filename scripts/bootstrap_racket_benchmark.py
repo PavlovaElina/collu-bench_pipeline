@@ -21,6 +21,10 @@ Example:
       --gt-temperature 0.4 ^
       --gt-top-p 0.95 ^
       --gt-max-new-tokens 384
+
+This is the recommended entry point when reproducing the complete Racket
+benchmark from raw HumanEval data, because it preserves the intended ordering of
+translation, native validation, dataset assembly, and optional evaluation.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ class BootstrapError(Exception):
 
 
 def run_command(command: list[str], *, cwd: Path) -> None:
+    """Run one pipeline stage and fail fast if the stage exits unsuccessfully."""
     print("\n[BOOTSTRAP] Running:")
     print(" ".join(command))
     result = subprocess.run(command, cwd=str(cwd))

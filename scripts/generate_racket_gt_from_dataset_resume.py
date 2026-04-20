@@ -20,6 +20,10 @@ Example:
         --temperature 0.4 ^
         --top-p 0.95 ^
         --attempts 15
+
+This variant is useful for long-running Racket GT construction jobs, where
+model sampling and native test execution may span many hours and interruptions
+should not force regeneration of already validated solutions.
 """
 
 from __future__ import annotations
@@ -127,6 +131,9 @@ def try_generate_ground_truth_resume(
 ) -> tuple[GroundTruthRecord | None, dict[str, Any]]:
     """
     Try multiple attempts until one generated solution passes tests.
+
+    The execution semantics are identical to the non-resume generator: a
+    candidate becomes ground truth only after native Racket execution succeeds.
     """
     prompt_text = build_prompt(row["prompt"], row["entry_point"])
     last_failure: dict[str, Any] = {

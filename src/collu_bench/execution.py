@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+"""
+Execution harnesses for generated benchmark solutions.
+
+Racket tasks are executed through the generic `external_command` pathway rather
+than a language-specific inline runner.  This is a deliberate design choice: a
+Racket task typically needs a small surrounding harness that writes
+`solution.rkt`, imports it from a generated `runner.rkt`, and then invokes the
+system `racket` executable so that RackUnit can determine the final exit code.
+"""
+
 import os
 import shlex
 import subprocess
@@ -81,6 +91,8 @@ class ExecutionRunner:
         if task.language == "python":
             extension = ".py"
         elif task.language == "racket":
+            # Racket candidates are materialized as `.rkt` files so that the
+            # downstream harness can `require` them as ordinary modules.
             extension = ".rkt"
         else:
             extension = ".java"

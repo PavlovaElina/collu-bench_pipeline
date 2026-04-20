@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+"""
+Token-type annotation utilities for benchmark outputs.
+
+Racket support is implemented with a small dedicated lexer and classifier
+instead of tree-sitter.  That design keeps annotation available even when the
+generated Racket code is only approximately well formed, which is common in
+hallucination analysis pipelines.
+"""
+
 import argparse
 import csv
 import json
@@ -780,6 +789,10 @@ def _collect_racket_tokens(code: str) -> List[CodeToken]:
     This is intentionally lightweight and does not require tree-sitter.
     It is sufficient for token-type annotation and for keeping the pipeline
     operational on Racket tasks.
+
+    In particular, the lexer is designed to preserve useful token boundaries
+    for classic Racket surface syntax such as quoted lists, string literals, and
+    semicolon comments, while remaining permissive about malformed input.
     """
     tokens: List[CodeToken] = []
     i = 0

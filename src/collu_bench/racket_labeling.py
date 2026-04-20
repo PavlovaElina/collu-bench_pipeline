@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+"""
+Token-level labeling for generated Racket programs.
+
+This module compares a model-generated Racket solution to the closest canonical
+reference after both sides have been normalized.  The goal is not to prove
+semantic equivalence; rather, it provides a stable token-level signal that can
+be used in downstream error analysis and hallucination studies on Racket code.
+"""
+
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import List, Sequence
@@ -130,6 +139,10 @@ class RacketTokenLabeler:
     5. Label each generated token:
        - 0 if aligned as equal
        - 1 if part of replace/delete region
+
+    Because the alignment is sequence-based rather than AST-based, the labels
+    should be interpreted as a reproducible approximation of token mismatch, not
+    as a formal diagnosis of semantic error in a Racket program.
     """
 
     def __init__(self):

@@ -1,5 +1,23 @@
 from __future__ import annotations
 
+"""
+Utilities for converting HumanEval-style Python tasks into a Racket-oriented form.
+
+The translation performed in this module is intentionally conservative.  Instead
+of trying to support arbitrary Python semantics, we translate only the subset of
+prompt/test structures that can be mapped deterministically to idiomatic
+`#lang racket` programs and `rackunit` assertions.  In practice this module is
+used during dataset preparation, where a predictable translation is more
+important than maximal coverage.
+
+Conceptually, the pipeline is:
+1. Rewrite the original English prompt so it asks for a Racket function.
+2. Parse Python test code with `ast` and convert supported expressions to
+   structurally equivalent Racket expressions.
+3. Wrap the translated checks into a standalone RackUnit runner that can be
+   executed by `racket` against a generated `solution.rkt`.
+"""
+
 import ast
 import re
 from dataclasses import dataclass
@@ -345,6 +363,10 @@ def _translate_call(call: ast.Call, entry_point: str) -> str:
 
     Main supported pattern:
         candidate(...)
+
+    The generated Racket tests always invoke the synthesized solution through
+    the task-specific `entry_point`, because HumanEval stores callable
+    references under the placeholder name `candidate`.
     """
     if isinstance(call.func, ast.Name) and call.func.id == "candidate":
         translated_args = [_translate_python_expr_to_racket(arg, entry_point) for arg in call.args]
@@ -409,6 +431,11 @@ def _build_racket_test_module(
     - we wrap checks inside a rackunit test-suite
     - we execute it with run-tests
     - we return exit code 0 only if all tests pass
+
+    The resulting module is designed to be written to `runner.rkt` next to a
+    generated `solution.rkt`, and then executed with:
+
+        racket runner.rkt
     """
     test_case_lines = []
     for idx, case in enumerate(translated_cases, start=1):

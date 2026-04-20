@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+"""
+Validated configuration models for the benchmark pipeline.
+
+Racket appears here as a first-class `SupportedLanguage`, which means that
+JSONL-backed datasets may describe executable Racket tasks in exactly the same
+configuration layer that is used for Python and Java.  The language-specific
+behavior is implemented elsewhere, but this module defines the contract that
+allows those Racket datasets to enter the pipeline.
+"""
+
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
@@ -62,6 +72,10 @@ class DatasetConfig(BaseModel):
         Rules:
         - humaneval / mbpp are Python datasets by definition
         - jsonl may specify python / java / racket
+
+        The Racket benchmark workflow therefore goes through `source="jsonl"`
+        after translation from HumanEval, rather than pretending that the
+        original built-in HumanEval loader is language-agnostic.
         """
         source = values.get("source")
 
