@@ -1,0 +1,38 @@
+output_csv: artifacts/racket-collu-bench-hybrid.csv
+execution_timeout: 120
+workspace: artifacts/workspace
+
+datasets:
+  - name: racket_pipeline_hybrid
+    source: jsonl
+    path: data/racket_pipeline_ready_hybrid.jsonl
+    task_type: cg
+    language: racket
+    extra:
+      sample_canonical: false
+    prompt:
+      mode: chat
+      system: >
+        You are an expert Racket programmer. Output only valid Racket code.
+        Do not add explanations, Markdown, examples, or code fences.
+      prefix: >
+        Solve the following task in Racket.
+      suffix: >
+        Return only executable Racket code starting with #lang racket.
+
+canonical_sampling:
+  enabled: false
+  samples_per_model: 0
+  max_attempts_multiplier: 1
+  cache_path: artifacts/racket_canonical_hybrid.json
+  sampler_models: []
+
+eval_models:
+  - name: deepseek-coder-6.7b
+    model: deepseek-ai/deepseek-coder-6.7b-instruct
+    max_tokens: 384
+    device: cuda
+    dtype: float16
+    temperature: 0.0
+    top_p: 1.0
+    logprobs: 20

@@ -1,0 +1,7 @@
+PyYAML>=6.0
+pydantic>=2.7
+datasets>=3.0.0
+evalplus
+tree-sitter==0.21.3
+torch>=2.2.0
+transformers>=4.44.0

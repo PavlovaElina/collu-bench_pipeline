@@ -1,0 +1,58 @@
+output_csv: artifacts/collu-bench.csv
+execution_timeout: 120
+workspace: artifacts/workspace
+
+datasets:
+  - name: humaneval
+    source: humaneval
+    task_type: cg
+    prompt:
+      mode: chat
+      system: >
+        You are an expert Python programmer. Produce the requested function
+        without explanations or Markdown fences.
+      prefix: |
+        Follow the instructions below and output a complete Python solution.
+  - name: mbpp
+    source: mbpp
+    task_type: cg
+    prompt:
+      mode: chat
+      system: >
+        Solve the task by outputting a single Python function. Do not wrap the
+        answer in backticks or natural language commentary.
+      prefix: >
+        Complete the following specification using standard Python.
+  - name: humaneval_java
+    source: jsonl
+    path: data/HumanEval.jsonl
+    task_type: apr
+    language: java
+    extra:
+      sample_canonical: true
+    prompt:
+      prefix: >
+        You are repairing a buggy Java snippet. Output the full patch that fixes
+        the failing tests.
+
+canonical_sampling:
+  enabled: true
+  samples_per_model: 20
+  max_attempts_multiplier: 1
+  cache_path: artifacts/canonical_qwen.json
+  sampler_models:
+    - name: qwen2.5-coder-14B
+      model: Qwen/Qwen2.5-Coder-14B
+      local_model_path: Qwen/Qwen2.5-Coder-14B
+      device: cuda
+      dtype: float16
+      temperature: 0.8
+      max_tokens: 1400
+      top_p: 0.95
+
+eval_models:
+  - name: mistral-nemo
+    model: mistralai/Mistral-Nemo-Instruct-2407
+    max_tokens: 1400
+    device: cuda
+    dtype: float16

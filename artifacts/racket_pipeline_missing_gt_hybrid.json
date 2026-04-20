@@ -1,0 +1,42 @@
+[
+  {
+    "task_id": "HumanEval/0",
+    "entry_point": "has_close_elements",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/1",
+    "entry_point": "separate_paren_groups",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/3",
+    "entry_point": "below_zero",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/6",
+    "entry_point": "parse_nested_parens",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/8",
+    "entry_point": "sum_product",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/16",
+    "entry_point": "count_distinct_characters",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/17",
+    "entry_point": "parse_music",
+    "reason": "missing ground truth"
+  },
+  {
+    "task_id": "HumanEval/19",
+    "entry_point": "sort_numbers",
+    "reason": "missing ground truth"
+  }
+]

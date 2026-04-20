@@ -1,0 +1,10 @@
+.DS_Store
+/.ipynb_checkpoints
+/artifacts/.ipynb_checkpoints
+/artifacts/workspace/tmp834ajnb4
+/configs/.ipynb_checkpoints
+/configs/data/.ipynb_checkpoints
+/datasets
+/scripts/__pycache__
+/src/collu_bench.egg-info
+/src/collu_bench/__pycache__
