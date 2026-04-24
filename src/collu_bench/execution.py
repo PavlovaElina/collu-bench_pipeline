@@ -115,16 +115,18 @@ class ExecutionRunner:
         )
         merged_env = {**os.environ, **env}
 
+        project_root = Path(__file__).resolve().parents[2]
+
         if os.name == "nt":
             command_parts = shlex.split(command, posix=False)
             if command_parts and command_parts[0].lower() == "python":
                 command_parts[0] = sys.executable
 
             proc_command = command_parts
-            proc_cwd = tests.workdir or str(Path.cwd())
+            proc_cwd = tests.workdir or str(project_root)
         else:
             proc_command = ["bash", "-lc", command]
-            proc_cwd = tests.workdir or self.workspace
+            proc_cwd = tests.workdir or str(project_root)
 
         try:
             proc = subprocess.run(
