@@ -1,0 +1,86 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "idx": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "model": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "dataset": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "task_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "meta": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "model_output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "closest_gt": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "hallucination_token_index": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "tokens": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    },
+    "token_types": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    },
+    "token_logprobs": {
+      "feature": {
+        "feature": {
+          "decoded_token": {
+            "dtype": "string",
+            "_type": "Value"
+          },
+          "logprob": {
+            "dtype": "float64",
+            "_type": "Value"
+          },
+          "token_id": {
+            "dtype": "int64",
+            "_type": "Value"
+          }
+        },
+        "_type": "List"
+      },
+      "_type": "List"
+    },
+    "execution": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "question": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "answer": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import yaml
-from pydantic import BaseModel, Field, validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 
 SupportedLanguage = Literal["python", "java", "racket"]
@@ -49,23 +49,34 @@ class DatasetConfig(BaseModel):
     task_type: TaskType
     language: Optional[SupportedLanguage] = None
     path: Optional[str] = None
-    limit: Optional[int] = None
+    sample_size: Optional[int] = Field(
+        default=None,
+        validation_alias=AliasChoices("sample_size", "limit"),
+        description=(
+            "Optional number of tasks to load from this dataset "
+            "(first N in source order). Accepts legacy key 'limit'."
+        ),
+    )
     prompt: PromptConfig = Field(default_factory=PromptConfig)
     extra: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator("path")
-    def _validate_path(cls, value: Optional[str], values: Dict[str, Any]) -> Optional[str]:
-        """Require a path for JSONL-backed datasets."""
-        if values.get("source") == "jsonl" and not value:
-            raise ValueError("jsonl datasets must provide a path")
+    @field_validator("sample_size")
+    @classmethod
+    def _validate_sample_size(cls, value: Optional[int]) -> Optional[int]:
+        """Reject negative sample sizes."""
+        if value is not None and value < 0:
+            raise ValueError("sample_size must be >= 0")
         return value
 
-    @validator("language", always=True)
-    def _validate_language_for_builtin_sources(
-        cls,
-        value: Optional[SupportedLanguage],
-        values: Dict[str, Any],
-    ) -> Optional[SupportedLanguage]:
+    @model_validator(mode="after")
+    def _validate_path(self) -> "DatasetConfig":
+        """Require a path for JSONL-backed datasets."""
+        if self.source == "jsonl" and not self.path:
+            raise ValueError("jsonl datasets must provide a path")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_language_for_builtin_sources(self) -> "DatasetConfig":
         """
         Enforce consistent language settings.
 
@@ -77,18 +88,15 @@ class DatasetConfig(BaseModel):
         after translation from HumanEval, rather than pretending that the
         original built-in HumanEval loader is language-agnostic.
         """
-        source = values.get("source")
-
-        if source in {"humaneval", "mbpp"}:
-            if value is None:
-                return "python"
-            if value != "python":
+        if self.source in {"humaneval", "mbpp"}:
+            if self.language is None:
+                self.language = "python"
+            elif self.language != "python":
                 raise ValueError(
-                    f"source='{source}' only supports language='python', got '{value}'"
+                    f"source='{self.source}' only supports language='python', "
+                    f"got '{self.language}'"
                 )
-            return value
-
-        return value
+        return self
 
 
 class LLMConfig(BaseModel):
@@ -121,7 +129,7 @@ class CanonicalSamplingConfig(BaseModel):
 class PipelineConfig(BaseModel):
     """Top-level pipeline configuration."""
 
-    output_csv: str = "collu-bench.csv"
+    output_dataset: str = "artifacts/collu-bench"
     datasets: List[DatasetConfig]
     eval_models: List[LLMConfig]
     canonical_sampling: CanonicalSamplingConfig = Field(

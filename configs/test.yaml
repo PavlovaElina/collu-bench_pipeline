@@ -6,7 +6,7 @@ datasets:
   - name: humaneval
     source: humaneval
     task_type: cg
-    # sample_size: 50  # optional: load only the first N tasks
+    sample_size: 3  # optional: load only the first N tasks
     prompt:
       mode: chat
       system: >
@@ -17,7 +17,7 @@ datasets:
   - name: mbpp
     source: mbpp
     task_type: cg
-    # sample_size: 100
+    sample_size: 3
     prompt:
       mode: chat
       system: >
@@ -30,7 +30,7 @@ datasets:
     path: data/HumanEval.jsonl
     task_type: apr
     language: java
-    # sample_size: 20
+    sample_size: 3
     extra:
       sample_canonical: true
     prompt:
@@ -44,18 +44,18 @@ canonical_sampling:
   max_attempts_multiplier: 1
   cache_path: artifacts/canonical_qwen.json
   sampler_models:
-    - name: qwen2.5-coder-14B
-      model: Qwen/Qwen2.5-Coder-14B
-      local_model_path: Qwen/Qwen2.5-Coder-14B
+    - name: Qwen3.6-35B-A3B
+      model: Qwen/Qwen3.6-35B-A3B
+      local_model_path: Qwen/Qwen3.6-35B-A3B
       device: cuda
-      dtype: float16
+      dtype: bfloat16
       temperature: 0.8
-      max_tokens: 1400
+      max_tokens: 1000
       top_p: 0.95
 
 eval_models:
-  - name: mistral-nemo
-    model: mistralai/Mistral-Nemo-Instruct-2407
-    max_tokens: 1400
+  - name: deepseek-coder-1.3b-instruct
+    model: deepseek-ai/deepseek-coder-1.3b-instruct 
+    max_tokens: 1000
     device: cuda
-    dtype: float16
+    dtype: bfloat16

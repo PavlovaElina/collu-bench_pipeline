@@ -51,11 +51,16 @@ def load_dataset(config: DatasetConfig, repo_root: Path) -> List[TaskInstance]:
     raise ValueError(f"Unsupported dataset source {config.source}")
 
 
+def _within_sample_size(idx: int, sample_size: Optional[int]) -> bool:
+    """Return True while the task index is still within the configured sample."""
+    return sample_size is None or idx < sample_size
+
+
 def _load_humaneval(config: DatasetConfig) -> List[TaskInstance]:
     data = get_human_eval_plus()
     tasks: List[TaskInstance] = []
     for idx, (raw_id, entry) in enumerate(sorted(data.items())):
-        if config.limit and idx >= config.limit:
+        if not _within_sample_size(idx, config.sample_size):
             break
         metadata = {
             key: value
@@ -93,7 +98,7 @@ def _load_mbpp(config: DatasetConfig) -> List[TaskInstance]:
     data = get_mbpp_plus()
     tasks: List[TaskInstance] = []
     for idx, (raw_id, entry) in enumerate(sorted(data.items())):
-        if config.limit and idx >= config.limit:
+        if not _within_sample_size(idx, config.sample_size):
             break
         question = entry["prompt"].strip()
         canonical = entry["canonical_solution"].strip()
@@ -133,7 +138,7 @@ def _load_jsonl(config: DatasetConfig, repo_root: Path) -> List[TaskInstance]:
     tasks: List[TaskInstance] = []
     with path.open("r") as handle:
         for idx, line in enumerate(handle):
-            if config.limit and idx >= config.limit:
+            if not _within_sample_size(idx, config.sample_size):
                 break
             record = json.loads(line)
             tests_dict = record.get("tests", {})

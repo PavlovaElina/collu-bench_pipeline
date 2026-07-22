@@ -297,7 +297,7 @@ def _normalize_visible_token_markers(text: str) -> str:
 
 def _clean_token_for_logging(token: str) -> str:
     """
-    Make tokenizer tokens more readable in CSV/log artifacts.
+    Make tokenizer tokens more readable in dataset/log artifacts.
 
     We keep the raw generation behavior unchanged and only clean the token text
     that is logged in `tokens` / `token_logprobs`.

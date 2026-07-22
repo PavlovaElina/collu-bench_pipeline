@@ -25,7 +25,10 @@ LOGGER = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Collu-Bench pipeline runner")
     parser.add_argument("--config", required=True, help="Path to the pipeline YAML config")
-    parser.add_argument("--output", help="Override the output csv path")
+    parser.add_argument(
+        "--output",
+        help="Override the output Hugging Face dataset directory path",
+    )
     parser.add_argument("--log-level", default="INFO")
     return parser.parse_args()
 
@@ -33,7 +36,7 @@ def parse_args() -> argparse.Namespace:
 def run_pipeline(config_path: Path, override_output: str | None = None) -> None:
     config = load_config(config_path)
     if override_output:
-        config.output_csv = override_output
+        config.output_dataset = override_output
     repo_root = config_path.parent
     dataset_tasks: Dict[str, List[TaskInstance]] = {}
     prompt_builders: Dict[str, PromptBuilder] = {}
@@ -89,7 +92,7 @@ def run_pipeline(config_path: Path, override_output: str | None = None) -> None:
         canonical_repo.dump(cache_path)
 
     locator = HallucinationLocator(normalizers)
-    writer = StorageWriter(Path(config.output_csv))
+    writer = StorageWriter(Path(config.output_dataset))
     idx_counter = 0
     LOGGER.info(f"Running {len(config.eval_models)} models")
     for dataset_cfg in config.datasets:
@@ -153,7 +156,7 @@ def run_pipeline(config_path: Path, override_output: str | None = None) -> None:
                         exc,
                     )
         writer.write()
-        LOGGER.info("Wrote %s rows to %s", len(writer.records), config.output_csv)
+        LOGGER.info("Wrote %s rows to %s", len(writer.records), config.output_dataset)
 
 
 def main() -> None:

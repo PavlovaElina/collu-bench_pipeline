@@ -2,7 +2,7 @@
 Utilities for reproducing the Collu-Bench benchmark generation pipeline.
 
 The package exposes helpers to load datasets, drive LLM sampling, normalize
-programs, align hallucination tokens, and export Collu-Bench compatible CSVs.
+programs, align hallucination tokens, and export Collu-Bench Hugging Face datasets.
 """
 
 from importlib.metadata import PackageNotFoundError, version

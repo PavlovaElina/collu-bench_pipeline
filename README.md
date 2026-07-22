@@ -17,8 +17,8 @@ the paper's main stages:
    closest canonical program, and report the first hallucinated token index.
 5. **Execution feedback** - run benchmark-specific harnesses or external
    scripts to record pass/fail/error messages.
-6. **Dataset export** - emit a `collu-bench.csv` with the fields used by the
-   paper.
+6. **Dataset export** - emit a Hugging Face dataset directory (Arrow via
+   `datasets.save_to_disk`) with the fields used by the paper.
 
 The default configuration collects canonical solutions for HumanEval and MBPP
 with EvalPlus, while APR-style datasets can be plugged in later through JSONL
@@ -48,8 +48,8 @@ The Racket toolchain currently covers four stages:
    with passing Racket ground truths into a generic JSONL dataset consumable by
    the main pipeline.
 4. **Benchmark execution** - `pipeline.py` can evaluate target models on that
-   Racket JSONL dataset, using the same CSV export and hallucination-analysis
-   machinery as for the original benchmark.
+   Racket JSONL dataset, using the same Hugging Face dataset export and
+   hallucination-analysis machinery as for the original benchmark.
 
 At the code level, the Racket-specific support lives mainly in:
 
@@ -60,6 +60,16 @@ At the code level, the Racket-specific support lives mainly in:
 * `scripts/run_racket_humaneval_tests.py` - native execution harness that runs `racket runner.rkt`
 
 ## Getting started
+
+Prefer the existing Conda environment:
+
+```bash
+conda activate collu-bench-pipeline
+pip install -r requirements.txt
+pip install -e .
+```
+
+Alternatively, with a virtualenv:
 
 ```bash
 python3 -m venv .venv
@@ -85,19 +95,21 @@ EvalPlus, and additional datasets can be hooked in through JSONL manifests that
 describe how to execute tests.
 
 ```yaml
-output_csv: artifacts/collu-bench.csv
+output_dataset: artifacts/collu-bench
 execution_timeout: 120
 workspace: artifacts/workspace
 datasets:
   - name: humaneval
     source: humaneval
     task_type: cg
+    sample_size: 50
     prompt:
       prefix: >
         You are a senior Python engineer. Provide only valid Python code.
   - name: mbpp
     source: mbpp
     task_type: cg
+    sample_size: 100
     prompt:
       prefix: >
         Write a correct Python function that satisfies the following specification.
@@ -133,6 +145,9 @@ Key sections:
   `humaneval`, `mbpp`, or `jsonl`. JSONL datasets must provide prompt text,
   canonical solutions, test metadata, and an execution command, so you can plug
   in HumanEval-Java, Defects4J, SWE-bench, or custom Racket datasets.
+  Optional `sample_size` caps how many tasks are loaded from that dataset
+  (first N in source order). Omit it to use the full dataset. The legacy key
+  `limit` is still accepted as an alias.
 * **prompt** - optional prefix and suffix strings added before or after each
   task prompt. Use these to enforce "only output code" instructions and keep
   the decoded tokens aligned with executable code.
@@ -164,21 +179,31 @@ To evaluate the prepared Racket dataset instead of the default mixed setup, run:
 python3 pipeline.py --config configs/racket_pipeline_hybrid.yaml
 ```
 
-Results are written as a semicolon-separated CSV, matching the Collu-Bench
-schema, and contain:
+Results are written with Hugging Face `datasets.save_to_disk` to the configured
+`output_dataset` directory (Arrow format). Reload them with:
+
+```python
+from datasets import load_from_disk
+
+data = load_from_disk("artifacts/collu-bench")
+print(data)
+```
+
+Each row contains:
 
 | Field | Description |
 | --- | --- |
 | `idx` | Unique row id |
 | `model` | Evaluated LLM |
 | `dataset` / `task_id` | Source benchmark identifiers |
-| `meta` | Task metadata plus raw model output before sanitization |
+| `meta` | JSON string with task metadata plus raw model output before sanitization |
 | `model_output` | Cleaned code fed into execution and comparison |
 | `closest_gt` | Canonical solution with the largest shared prefix |
 | `hallucination_token_index` | Index of the first hallucinated token |
-| `tokens` / `token_logprobs` | Per-step decoding trace |
+| `tokens` | Per-step decoded tokens (`List[str]`) |
+| `token_logprobs` | Per-step top token candidates (`List[List[{decoded_token, logprob, token_id}]]`) |
 | `token_types` | Token categories aligned with each decoded token |
-| `execution` | Pass/fail status, stdout, stderr, and command details |
+| `execution` | Execution feedback string (empty on pass) |
 | `question` / `answer` | Prompt and canonical answer for quick reference |
 
 For Racket rows, `model_output`, `closest_gt`, and `answer` contain executable
@@ -261,8 +286,8 @@ the rest of the pipeline after the HumanEval-to-Racket translation stage.
 
 * Plug in additional prompt templates; few-shot instructions can live next to
   the config so you can reuse templates from the paper's appendix.
-* Integrate storage backends other than CSV, for example Hugging Face datasets,
-  by extending `StorageWriter`.
+* Optionally push exported datasets to the Hugging Face Hub with
+  `Dataset.push_to_hub`.
 * Enable model-parallel inference by spawning multiple workers or using
   `device_map: auto` and `accelerate` when loading large checkpoints.
 

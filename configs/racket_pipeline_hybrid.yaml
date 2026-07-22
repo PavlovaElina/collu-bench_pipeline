@@ -1,4 +1,4 @@
-output_csv: artifacts/racket-collu-bench-hybrid.csv
+output_dataset: artifacts/racket-collu-bench-hybrid
 execution_timeout: 120
 workspace: artifacts/workspace
 
