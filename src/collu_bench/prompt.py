@@ -36,6 +36,7 @@ class PromptBuilder:
             "task_id": task.task_id,
             "question": task.question,
             "prompt": task.prompt,
+            "language": task.language,
             "meta": task.meta,
         }
         segments: List[str] = []
@@ -50,7 +51,12 @@ class PromptBuilder:
         if self.prompt_cfg.mode == "chat":
             messages = []
             if self.prompt_cfg.system:
-                messages.append({"role": "system", "content": self.prompt_cfg.system})
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": self.prompt_cfg.system.format(**context),
+                    }
+                )
             messages.append({"role": "user", "content": payload})
             return PromptPayload(mode="chat", content=messages)
         return PromptPayload(mode="text", content=payload)

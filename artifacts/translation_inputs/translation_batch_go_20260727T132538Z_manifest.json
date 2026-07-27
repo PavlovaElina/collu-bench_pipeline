@@ -1,0 +1,85 @@
+{
+  "created_at": "20260727T132538Z",
+  "mode": "export",
+  "model": "gpt-5.4-nano",
+  "target_language": "go",
+  "input_path": "/home/georgy/Dissertation/collu-bench_pipeline/artifacts/translation_inputs/translation_batch_go_20260727T132538Z.jsonl",
+  "output_dir": "/home/georgy/Dissertation/collu-bench_pipeline/artifacts/translation_outputs",
+  "request_count": 18,
+  "task_count": 9,
+  "translate_solutions": true,
+  "tasks": [
+    {
+      "dataset": "humaneval",
+      "task_id": "HumanEval/0",
+      "source_language": "python",
+      "cache_key": "97227c5f3b70be92a59a171bce50c2b89feaf2c9234619b3e6e6975a8ce0b4fe",
+      "prompt_custom_id": "humaneval__HumanEval_0__prompt__d1d06a23dcf866ef",
+      "solution_custom_id": "humaneval__HumanEval_0__solution__04f5e807cd16e9b0"
+    },
+    {
+      "dataset": "humaneval",
+      "task_id": "HumanEval/1",
+      "source_language": "python",
+      "cache_key": "3383687cf8244bd7eecfa6e387822043032a6e21d0b18deab235ad586fffc49c",
+      "prompt_custom_id": "humaneval__HumanEval_1__prompt__6da4d51873b79e2a",
+      "solution_custom_id": "humaneval__HumanEval_1__solution__ac08f953f66e8947"
+    },
+    {
+      "dataset": "humaneval",
+      "task_id": "HumanEval/10",
+      "source_language": "python",
+      "cache_key": "f7c1d88822e94eaee18e982016ba08a61f6261a89f71f5a04df924d4ecbc49c4",
+      "prompt_custom_id": "humaneval__HumanEval_10__prompt__6c59bd4724dcb216",
+      "solution_custom_id": "humaneval__HumanEval_10__solution__06b1204a15be6fd1"
+    },
+    {
+      "dataset": "mbpp",
+      "task_id": "Mbpp/100",
+      "source_language": "python",
+      "cache_key": "c97fb53f9d8bd606c3702a1b877940d61ea287b153a6a42b732e3ad8a6deb3f4",
+      "prompt_custom_id": "mbpp__Mbpp_100__prompt__41adab401756ce95",
+      "solution_custom_id": "mbpp__Mbpp_100__solution__5f6a22ad1622a402"
+    },
+    {
+      "dataset": "mbpp",
+      "task_id": "Mbpp/101",
+      "source_language": "python",
+      "cache_key": "d48036097d21b178020ae501de39b07deeeb9631d7520aa19fdb59a45dea887f",
+      "prompt_custom_id": "mbpp__Mbpp_101__prompt__fe421da8a3b0223a",
+      "solution_custom_id": "mbpp__Mbpp_101__solution__f76ebcdccbe32df9"
+    },
+    {
+      "dataset": "mbpp",
+      "task_id": "Mbpp/102",
+      "source_language": "python",
+      "cache_key": "c0fe53d54388ed3a54fc2a17afa844af4ebdd88811546ce1c9831683083c8fca",
+      "prompt_custom_id": "mbpp__Mbpp_102__prompt__a6a458d4ef09cc20",
+      "solution_custom_id": "mbpp__Mbpp_102__solution__33985a68cee5f497"
+    },
+    {
+      "dataset": "humaneval_java",
+      "task_id": "HumanEval/0",
+      "source_language": "java",
+      "cache_key": "1eb9c16375fe382a40445891a469273add01b963ca4f4ed09030f98c36e36882",
+      "prompt_custom_id": "humaneval_java__HumanEval_0__prompt__6b5bfa33892a19eb",
+      "solution_custom_id": "humaneval_java__HumanEval_0__solution__ddd56a8e17c3ed3e"
+    },
+    {
+      "dataset": "humaneval_java",
+      "task_id": "HumanEval/1",
+      "source_language": "java",
+      "cache_key": "8e72eeaaabe3bd7fd018b4b4822e4c67b86775da84c7966320e421e909e740a4",
+      "prompt_custom_id": "humaneval_java__HumanEval_1__prompt__35af25c65c816059",
+      "solution_custom_id": "humaneval_java__HumanEval_1__solution__b0cbccead57494c2"
+    },
+    {
+      "dataset": "humaneval_java",
+      "task_id": "HumanEval/2",
+      "source_language": "java",
+      "cache_key": "ded4bbb2610d03d7c2d7fee4a051accb6b9e8f5fed10e54dff289280a892ef29",
+      "prompt_custom_id": "humaneval_java__HumanEval_2__prompt__8c455c6c735d836a",
+      "solution_custom_id": "humaneval_java__HumanEval_2__solution__f59b0104ff45d2d3"
+    }
+  ]
+}

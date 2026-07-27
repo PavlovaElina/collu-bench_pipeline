@@ -129,6 +129,15 @@ eval_models:
 
 Key sections:
 
+* **target_language** / **prompt_translation** - optional rewrite of dataset
+  prompts into another programming language via OpenAI Batch JSONL files.
+  - `mode: export` writes a Batch input `.jsonl` under `input_dir` for manual
+    upload on the OpenAI platform, then stops the pipeline.
+  - `mode: import` loads a downloaded Batch output `.jsonl` from `output_dir`
+    (`batch_output_file`) and continues to build the Collu-Bench dataset.
+  - `mode: api` submits/polls automatically (requires `secrets/openai_api_key`
+    or `OPENAI_API_KEY`).
+  CLI overrides: `--translation-mode`, `--batch-input-file`, `--batch-output-file`.
 * **datasets** - declares each source benchmark. `source` may be
   `humaneval`, `mbpp`, or `jsonl`. JSONL datasets must provide prompt text,
   canonical solutions, test metadata, and an execution command, so you can plug

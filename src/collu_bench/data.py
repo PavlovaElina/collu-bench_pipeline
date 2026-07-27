@@ -71,7 +71,7 @@ def _load_humaneval(config: DatasetConfig) -> List[TaskInstance]:
         }
         question = entry["prompt"].strip()
         canonical = entry["canonical_solution"].strip()
-        print(question, canonical)
+        language = (config.language or "python").lower()
         tasks.append(
             TaskInstance(
                 dataset=config.name,
@@ -79,11 +79,15 @@ def _load_humaneval(config: DatasetConfig) -> List[TaskInstance]:
                 prompt=_strip_triple_quotes(question),
                 question=_strip_triple_quotes(question),
                 answer=canonical,
-                language="python",
+                language=language,
                 entry_point=entry.get("entry_point"),
                 canonical_solutions=[canonical],
                 tests=TestSpec(kind="humaneval", content=entry["test"]),
-                meta={"source_task_id": raw_id, **metadata},
+                meta={
+                    "source_task_id": raw_id,
+                    "source_language": "python",
+                    **metadata,
+                },
             )
         )
     return tasks
@@ -109,6 +113,7 @@ def _load_mbpp(config: DatasetConfig) -> List[TaskInstance]:
                 "entry_point",
             }
         }
+        language = (config.language or "python").lower()
         tasks.append(
             TaskInstance(
                 dataset=config.name,
@@ -116,11 +121,15 @@ def _load_mbpp(config: DatasetConfig) -> List[TaskInstance]:
                 prompt=_strip_triple_quotes(question),
                 question=_strip_triple_quotes(question),
                 answer=canonical,
-                language="python",
+                language=language,
                 entry_point=entry.get("entry_point"),
                 canonical_solutions=[canonical],
                 tests=TestSpec(kind="mbpp_assert", content=entry.get("assertion", "")),
-                meta={"source_task_id": raw_id, **metadata},
+                meta={
+                    "source_task_id": raw_id,
+                    "source_language": "python",
+                    **metadata,
+                },
             )
         )
     return tasks
@@ -156,6 +165,12 @@ def _load_jsonl(config: DatasetConfig, repo_root: Path) -> List[TaskInstance]:
             language = record.get("language") or config.language
             if not language:
                 raise ValueError(f"Task {record.get('task_id')} missing language info")
+            language = str(language).strip().lower()
+            source_language = language
+            if config.name == "humaneval_java":
+                source_language = "java"
+            meta = dict(record.get("meta", {}))
+            meta.setdefault("source_language", source_language)
             tasks.append(
                 TaskInstance(
                     dataset=config.name,
@@ -167,7 +182,7 @@ def _load_jsonl(config: DatasetConfig, repo_root: Path) -> List[TaskInstance]:
                     entry_point=record.get("entry_point"),
                     canonical_solutions=canonical,
                     tests=tests,
-                    meta=record.get("meta", {}),
+                    meta=meta,
                 )
             )
     return tasks

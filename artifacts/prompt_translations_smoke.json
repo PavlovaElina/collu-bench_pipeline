@@ -1,0 +1,38 @@
+{
+  "19e8447a213cfbed90a1c57f560d2cabf45a214355524a4f13b2152ee77742c2": {
+    "prompt": "// translated PROMPT for humaneval__HumanEval_0__prompt__d1d06a23dcf866ef",
+    "answer": "// translated SOLUTION for humaneval__HumanEval_0__solution__04f5e807cd16e9b0"
+  },
+  "2e2e683b230eaafb622d293d6746a591f802a5e797ef39be0b3dedfadcd8b819": {
+    "prompt": "// translated PROMPT for humaneval__HumanEval_1__prompt__6da4d51873b79e2a",
+    "answer": "// translated SOLUTION for humaneval__HumanEval_1__solution__ac08f953f66e8947"
+  },
+  "e6363df89d425a2cce800ea180bfd1edf905b8786ac250e68e8b641d9f24565f": {
+    "prompt": "// translated PROMPT for humaneval__HumanEval_10__prompt__6c59bd4724dcb216",
+    "answer": "// translated SOLUTION for humaneval__HumanEval_10__solution__06b1204a15be6fd1"
+  },
+  "d003f5ec90eb943a3c02856e64e860773ce8e2f9ea1b49893d44bc87b61732b2": {
+    "prompt": "// translated PROMPT for mbpp__Mbpp_100__prompt__41adab401756ce95",
+    "answer": "// translated SOLUTION for mbpp__Mbpp_100__solution__5f6a22ad1622a402"
+  },
+  "5b4157268fe10fbadeff547272d97a1b7b37484f1c27cc44a0d099e2e0cd558f": {
+    "prompt": "// translated PROMPT for mbpp__Mbpp_101__prompt__fe421da8a3b0223a",
+    "answer": "// translated SOLUTION for mbpp__Mbpp_101__solution__f76ebcdccbe32df9"
+  },
+  "adaaeb1bddea15215e98804ced616a3ca3f4f261c356af9e2de8a190ff0739a8": {
+    "prompt": "// translated PROMPT for mbpp__Mbpp_102__prompt__a6a458d4ef09cc20",
+    "answer": "// translated SOLUTION for mbpp__Mbpp_102__solution__33985a68cee5f497"
+  },
+  "7f25949cb7cf920aac6b9b843f49295f355af3aedd9015577ad060c915bfa42d": {
+    "prompt": "// translated PROMPT for humaneval_java__HumanEval_0__prompt__6b5bfa33892a19eb",
+    "answer": "// translated SOLUTION for humaneval_java__HumanEval_0__solution__ddd56a8e17c3ed3e"
+  },
+  "603d6f12f46245c007541080ba4e6668a2fef09547f336ccf8ff8e34fef17c6a": {
+    "prompt": "// translated PROMPT for humaneval_java__HumanEval_1__prompt__35af25c65c816059",
+    "answer": "// translated SOLUTION for humaneval_java__HumanEval_1__solution__b0cbccead57494c2"
+  },
+  "a74fe17ec7ee4919d616e38ae5260159133dc584fd56e9cf81d60078e36f5ff4": {
+    "prompt": "// translated PROMPT for humaneval_java__HumanEval_2__prompt__8c455c6c735d836a",
+    "answer": "// translated SOLUTION for humaneval_java__HumanEval_2__solution__f59b0104ff45d2d3"
+  }
+}

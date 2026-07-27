@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import gc
 import logging
 from pathlib import Path
 from typing import Dict, List
@@ -13,12 +12,11 @@ from .config import LLMConfig, PipelineConfig, load_config
 from .data import TaskInstance, load_dataset
 from .execution import ExecutionRunner
 from .hallucination import HallucinationLocator
-from .llm import BaseLLMClient, LocalHFClient
+from .llm import LocalHFClient
 from .normalization import NormalizerRegistry
 from .prompt import PromptBuilder
 from .storage import ColluRecord, StorageWriter
 from .token_types import TokenTypeAnnotator
-from .translation import PromptTranslator, TranslationBatchExported
 from .utils import extract_code_snippet
 
 LOGGER = logging.getLogger(__name__)
@@ -29,152 +27,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, help="Path to the pipeline YAML config")
     parser.add_argument("--output", help="Override the output csv path")
     parser.add_argument("--log-level", default="INFO")
-    parser.add_argument(
-        "--translation-mode",
-        choices=["export", "import", "api"],
-        help="Override prompt_translation.mode (export writes Batch JSONL and stops)",
-    )
-    parser.add_argument(
-        "--batch-output-file",
-        help="Override prompt_translation.batch_output_file for mode=import",
-    )
-    parser.add_argument(
-        "--batch-input-file",
-        help="Override prompt_translation.batch_input_file for mode=export/api",
-    )
     return parser.parse_args()
 
 
-def _unload_client(client: BaseLLMClient | None, label: str) -> None:
-    """Drop an LLM client and encourage the runtime to reclaim VRAM."""
-    if client is None:
-        return
-    LOGGER.info("Unloading model '%s' to free GPU memory", label)
-    client.unload()
-    del client
-    gc.collect()
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-    except Exception:  # pragma: no cover - best-effort cleanup
-        LOGGER.debug("CUDA cache cleanup failed", exc_info=True)
-
-
-def _apply_translation_cli_overrides(
-    config: PipelineConfig,
-    *,
-    translation_mode: str | None,
-    batch_output_file: str | None,
-    batch_input_file: str | None,
-) -> None:
-    translation = config.prompt_translation
-    updates = {}
-    if translation_mode:
-        updates["mode"] = translation_mode
-    if batch_output_file:
-        updates["batch_output_file"] = batch_output_file
-    if batch_input_file:
-        updates["batch_input_file"] = batch_input_file
-    if not updates:
-        return
-    if hasattr(translation, "model_copy"):
-        config.prompt_translation = translation.model_copy(update=updates)
-    else:
-        config.prompt_translation = translation.copy(update=updates)
-
-
-def _maybe_translate_tasks(
-    config: PipelineConfig,
-    dataset_tasks: Dict[str, List[TaskInstance]],
-    *,
-    repo_root: Path,
-) -> bool:
-    """
-    Translate prompts via OpenAI Batch JSONL workflows.
-
-    Returns True when the pipeline should stop after exporting a Batch input
-    file for manual upload. Returns False when translation finished (or was
-    skipped) and the pipeline should continue.
-    """
-    target_language = config.target_language
-    if not target_language:
-        return False
-    if not config.prompt_translation.enabled:
-        LOGGER.info(
-            "target_language=%s set but prompt_translation.enabled=false; "
-            "skipping translation",
-            target_language,
-        )
-        return False
-
-    translator = PromptTranslator(
-        config=config.prompt_translation,
-        target_language=target_language,
-        repo_root=repo_root,
-    )
-    mode = config.prompt_translation.mode
-    LOGGER.info(
-        "Translating prompts into target_language=%s via OpenAI Batch "
-        "(mode=%s, model=%s, input_dir=%s, output_dir=%s)",
-        target_language,
-        mode,
-        config.prompt_translation.model,
-        config.prompt_translation.input_dir,
-        config.prompt_translation.output_dir,
-    )
-    # Flatten all datasets into one Batch job, then restore grouping.
-    ordered_names = list(dataset_tasks.keys())
-    flat_tasks: List[TaskInstance] = []
-    spans: List[tuple[str, int, int]] = []
-    for dataset_name in ordered_names:
-        tasks = dataset_tasks[dataset_name]
-        start = len(flat_tasks)
-        flat_tasks.extend(tasks)
-        spans.append((dataset_name, start, len(tasks)))
-
-    try:
-        translated_flat = translator.translate_tasks(flat_tasks)
-    except TranslationBatchExported as exported:
-        LOGGER.info("%s", exported)
-        LOGGER.info(
-            "Stopping pipeline after Batch input export. "
-            "Upload %s on the OpenAI platform, download the results into %s, "
-            "then re-run with prompt_translation.mode=import.",
-            exported.input_path,
-            config.prompt_translation.output_dir,
-        )
-        return True
-
-    for dataset_name, start, count in spans:
-        dataset_tasks[dataset_name] = translated_flat[start : start + count]
-        LOGGER.info(
-            "Finished translating %s tasks for dataset=%s",
-            count,
-            dataset_name,
-        )
-    return False
-
-
-def run_pipeline(
-    config_path: Path,
-    override_output: str | None = None,
-    *,
-    translation_mode: str | None = None,
-    batch_output_file: str | None = None,
-    batch_input_file: str | None = None,
-) -> None:
+def run_pipeline(config_path: Path, override_output: str | None = None) -> None:
     config = load_config(config_path)
     if override_output:
         config.output_csv = override_output
-    _apply_translation_cli_overrides(
-        config,
-        translation_mode=translation_mode,
-        batch_output_file=batch_output_file,
-        batch_input_file=batch_input_file,
-    )
     repo_root = config_path.parent
     dataset_tasks: Dict[str, List[TaskInstance]] = {}
     prompt_builders: Dict[str, PromptBuilder] = {}
@@ -183,16 +42,6 @@ def run_pipeline(
         dataset_tasks[dataset_cfg.name] = tasks
         prompt_builders[dataset_cfg.name] = PromptBuilder(dataset_cfg, repo_root)
         LOGGER.info("Loaded %s tasks for %s", len(tasks), dataset_cfg.name)
-
-    # Stage 1: export / import / api translation before local models load.
-    should_stop = _maybe_translate_tasks(config, dataset_tasks, repo_root=repo_root)
-    if should_stop:
-        return
-
-    # Stage 2: load eval / sampler models.
-    all_model_configs: Dict[str, LLMConfig] = config.named_models()
-    LOGGER.info("Loading eval/sampler models: %s", list(all_model_configs))
-    model_clients = {name: LocalHFClient(cfg) for name, cfg in all_model_configs.items()}
 
     normalizers = NormalizerRegistry()
     execution_runner = ExecutionRunner(config.execution_timeout, Path(config.workspace))
@@ -217,9 +66,17 @@ def run_pipeline(
     for dataset_cfg in config.datasets:
         canonical_collector.seed_with_dataset(dataset_tasks[dataset_cfg.name])
 
+    all_model_configs: Dict[str, LLMConfig] = {
+        cfg.name: cfg for cfg in config.eval_models
+    }
+    for sampler_cfg in config.canonical_sampling.sampler_models:
+        all_model_configs[sampler_cfg.name] = sampler_cfg
+    LOGGER.info(f"Loaded configs: {all_model_configs}")
+    model_clients = {name: LocalHFClient(cfg) for name, cfg in all_model_configs.items()}
+
     sampler_cfgs = config.canonical_sampling.sampler_models or config.eval_models
     sampler_clients = [model_clients[cfg.name] for cfg in sampler_cfgs]
-    LOGGER.info("Loaded sampler clients %s", sampler_clients)
+    LOGGER.info(f"Loaded sampler clients {sampler_clients} ")
     for dataset_cfg in config.datasets:
         if not dataset_cfg.extra.get("sample_canonical", True):
             continue
@@ -234,7 +91,7 @@ def run_pipeline(
     locator = HallucinationLocator(normalizers)
     writer = StorageWriter(Path(config.output_csv))
     idx_counter = 0
-    LOGGER.info("Running %s models", len(config.eval_models))
+    LOGGER.info(f"Running {len(config.eval_models)} models")
     for dataset_cfg in config.datasets:
         tasks = dataset_tasks[dataset_cfg.name]
         builder = prompt_builders[dataset_cfg.name]
@@ -265,7 +122,7 @@ def run_pipeline(
                         task, code, canonical_records, generation.tokens
                     )
                     token_types = token_annotator.annotate(task.language, code, generation.tokens)
-
+                    
                     writer.append(
                         ColluRecord(
                             idx=idx_counter,
@@ -306,13 +163,7 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     print(f"Running with args: {args}")
-    run_pipeline(
-        Path(args.config).expanduser(),
-        args.output,
-        translation_mode=args.translation_mode,
-        batch_output_file=args.batch_output_file,
-        batch_input_file=args.batch_input_file,
-    )
+    run_pipeline(Path(args.config).expanduser(), args.output)
 
 
 if __name__ == "__main__":

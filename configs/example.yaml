@@ -2,38 +2,74 @@ output_csv: artifacts/collu-bench.csv
 execution_timeout: 120
 workspace: artifacts/workspace
 
+# Arbitrary programming language for Collu-Bench outputs.
+# When set (and different from a dataset's native language), prompts are
+# translated with OpenAI's Batch API before evaluation.
+# Omit or set null to keep each dataset's native language (python/java).
+target_language: go
+
+prompt_translation:
+  enabled: true
+  translate_solutions: true
+  cache_path: artifacts/prompt_translations.json
+  # Workflow:
+  #   export - write Batch input JSONL for manual upload, then stop
+  #   import - load Batch output JSONL and continue building Collu-Bench
+  #   api    - submit/poll Batch API automatically (needs API key)
+  mode: export
+  model: gpt-5.4-nano
+  # Local API key file (only required for mode=api).
+  api_key_path: secrets/openai_api_key
+  # Separate folders for manual Batch upload / download JSONL files.
+  input_dir: artifacts/translation_inputs
+  output_dir: artifacts/translation_outputs
+  # Optional fixed basename for the exported input JSONL (under input_dir).
+  # batch_input_file: translation_batch_go.jsonl
+  # Required for mode=import: filename under output_dir (or absolute path).
+  # batch_output_file: translation_batch_go_output.jsonl
+  completion_window: 24h
+  poll_interval_seconds: 30
+  temperature: 0.0
+  max_tokens: 2048
+  reasoning_effort: none
+
 datasets:
   - name: humaneval
     source: humaneval
     task_type: cg
+    limit: 3
     prompt:
       mode: chat
       system: >
-        You are an expert Python programmer. Produce the requested function
+        You are an expert {language} programmer. Produce the requested function
         without explanations or Markdown fences.
       prefix: |
-        Follow the instructions below and output a complete Python solution.
+        Follow the instructions below and output a complete {language} solution.
   - name: mbpp
     source: mbpp
     task_type: cg
+    limit: 3
     prompt:
       mode: chat
       system: >
-        Solve the task by outputting a single Python function. Do not wrap the
+        Solve the task by outputting a single {language} function. Do not wrap the
         answer in backticks or natural language commentary.
       prefix: >
-        Complete the following specification using standard Python.
+        Complete the following specification using standard {language}.
   - name: humaneval_java
     source: jsonl
     path: data/HumanEval.jsonl
     task_type: apr
     language: java
+    limit: 3
     extra:
       sample_canonical: true
     prompt:
+      mode: chat
+      system: >
+        You are an expert {language} programmer. Output only valid {language} code.
       prefix: >
-        You are repairing a buggy Java snippet. Output the full patch that fixes
-        the failing tests.
+        Solve or repair the following task in {language}.
 
 canonical_sampling:
   enabled: true
@@ -45,7 +81,7 @@ canonical_sampling:
       model: Qwen/Qwen2.5-Coder-14B
       local_model_path: Qwen/Qwen2.5-Coder-14B
       device: cuda
-      dtype: float16
+      dtype: bfloat16
       temperature: 0.8
       max_tokens: 1400
       top_p: 0.95
@@ -55,4 +91,4 @@ eval_models:
     model: mistralai/Mistral-Nemo-Instruct-2407
     max_tokens: 1400
     device: cuda
-    dtype: float16
+    dtype: bfloat16

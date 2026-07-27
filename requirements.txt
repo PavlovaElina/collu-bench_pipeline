@@ -3,5 +3,17 @@ pydantic>=2.7
 datasets>=3.0.0
 evalplus
 tree-sitter==0.21.3
-torch>=2.2.0
-transformers>=4.44.0
+openai>=1.40.0
+# CUDA 12.4 stack (matches NVIDIA driver 550 / CUDA 12.4):
+#   pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 torchaudio==2.6.0+cu124 \
+#     --index-url https://download.pytorch.org/whl/cu124
+#   pip install vllm==0.8.5 xformers==0.0.29.post2
+torch==2.6.0
+torchaudio==2.6.0
+torchvision==0.21.0
+transformers>=4.51.1,<5.0
+bitsandbytes>=0.43.0
+accelerate>=0.33.0
+vllm==0.8.5
+xformers==0.0.29.post2
+tree-sitter-languages==1.10.2

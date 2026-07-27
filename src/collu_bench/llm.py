@@ -37,6 +37,22 @@ class BaseLLMClient:
     def generate(self, prompt: PromptPayload, request_id: str) -> LLMGeneration:
         raise NotImplementedError
 
+    def unload(self) -> None:
+        """Release model resources. Default is a no-op."""
+        return None
+
+
+def create_llm_client(config: LLMConfig, *, backend: str = "hf") -> BaseLLMClient:
+    """Construct an LLM client for the requested backend."""
+    normalized = (backend or "hf").strip().lower()
+    if normalized in {"vllm", "vllm-engine"}:
+        return VLLMClient(config)
+    if normalized in {"hf", "transformers", "huggingface"}:
+        return LocalHFClient(config)
+    raise ValueError(
+        f"Unsupported LLM backend '{backend}'. Supported: hf, vllm"
+    )
+
 
 class LocalHFClient(BaseLLMClient):
     """Local Hugging Face client that performs inference on-device."""
@@ -46,6 +62,7 @@ class LocalHFClient(BaseLLMClient):
         self.model_id = config.local_model_path or config.model
         self.device = config.device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = _resolve_dtype(config.dtype, self.device)
+        self.quantization = (config.quantization or "").strip().lower() or None
         self._prepare_environment()
 
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -56,18 +73,43 @@ class LocalHFClient(BaseLLMClient):
         self._pad_added = False
         self._ensure_pad_token()
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_id,
-            torch_dtype=self.dtype,
-            device_map="auto" if self.device == "auto" else None,
-            trust_remote_code=True,
-        )
+        load_kwargs: Dict[str, Any] = {
+            "trust_remote_code": True,
+        }
+        quant_config = _build_quantization_config(self.quantization)
+        if quant_config is not None:
+            # bitsandbytes quantized models must be placed via device_map.
+            load_kwargs["quantization_config"] = quant_config
+            load_kwargs["device_map"] = "auto"
+        else:
+            load_kwargs["torch_dtype"] = self.dtype
+            load_kwargs["device_map"] = "auto" if self.device == "auto" else None
+
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_id, **load_kwargs)
         if self._pad_added:
             self.model.resize_token_embeddings(len(self.tokenizer))
-        if self.device != "auto":
+        if quant_config is None and self.device != "auto":
             self.model.to(self.device)
         self.model.eval()
         self.model_device = next(self.model.parameters()).device
+
+    def unload(self) -> None:
+        """Release model weights and free GPU memory held by this client."""
+        model = getattr(self, "model", None)
+        tokenizer = getattr(self, "tokenizer", None)
+        if model is not None:
+            try:
+                model.to("cpu")
+            except Exception:
+                pass
+            del self.model
+        if tokenizer is not None:
+            del self.tokenizer
+        self.model = None  # type: ignore[assignment]
+        self.tokenizer = None  # type: ignore[assignment]
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
 
     def _prepare_environment(self) -> None:
         for key, value in self.config.environment.items():
@@ -151,6 +193,169 @@ class LocalHFClient(BaseLLMClient):
         )
 
 
+class VLLMClient(BaseLLMClient):
+    """vLLM-backed client used for high-throughput translator inference."""
+
+    def __init__(self, config: LLMConfig):
+        try:
+            from vllm import LLM, SamplingParams
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "backend='vllm' requires the vllm package. Install with: pip install vllm"
+            ) from exc
+
+        self.config = config
+        self.model_id = config.local_model_path or config.model
+        self.quantization = (config.quantization or "").strip().lower() or None
+        self._prepare_environment()
+        self._LLM = LLM
+        self._SamplingParams = SamplingParams
+        self.llm = self._build_engine()
+        self.tokenizer = self.llm.get_tokenizer()
+
+    def _prepare_environment(self) -> None:
+        for key, value in self.config.environment.items():
+            if value.startswith("$"):
+                env_name = value[1:]
+                resolved = os.getenv(env_name)
+                if resolved is None:
+                    raise EnvironmentError(
+                        f"Missing value for {env_name} referenced in LLM environment"
+                    )
+                os.environ[key] = resolved
+            else:
+                os.environ[key] = value
+
+    def _build_engine(self):
+        extra = dict(self.config.extra or {})
+        dtype = (self.config.dtype or "auto").lower()
+        if dtype in {"float16", "fp16", "half"}:
+            dtype = "float16"
+        elif dtype in {"bfloat16", "bf16"}:
+            dtype = "bfloat16"
+        elif dtype in {"float32", "fp32"}:
+            dtype = "float32"
+
+        engine_kwargs: Dict[str, Any] = {
+            "model": self.model_id,
+            "trust_remote_code": True,
+            "dtype": dtype,
+            "max_model_len": int(extra.pop("max_model_len", 8192)),
+            "gpu_memory_utilization": float(extra.pop("gpu_memory_utilization", 0.90)),
+            "tensor_parallel_size": int(extra.pop("tensor_parallel_size", 1)),
+            "enforce_eager": bool(extra.pop("enforce_eager", False)),
+        }
+
+        quant_kwargs = _resolve_vllm_quantization(
+            requested=self.quantization,
+            model_id=self.model_id,
+        )
+        engine_kwargs.update(quant_kwargs)
+
+        # Allow advanced vLLM overrides via config.extra
+        engine_kwargs.update(extra)
+        return self._LLM(**engine_kwargs)
+
+    def generate(self, prompt: PromptPayload, request_id: str) -> LLMGeneration:
+        prompt_text = _render_prompt_text(self.tokenizer, prompt)
+        do_sample = self.config.temperature > 0
+        sampling_kwargs: Dict[str, Any] = {
+            "temperature": max(self.config.temperature, 1e-5) if do_sample else 0.0,
+            "top_p": self.config.top_p if do_sample else 1.0,
+            "max_tokens": self.config.max_tokens,
+        }
+        stop = (self.config.extra or {}).get("stop")
+        if stop:
+            sampling_kwargs["stop"] = stop
+        if self.config.logprobs and self.config.logprobs > 0:
+            sampling_kwargs["logprobs"] = self.config.logprobs
+
+        params = self._SamplingParams(**sampling_kwargs)
+        outputs = self.llm.generate([prompt_text], params, use_tqdm=False)
+        output = outputs[0].outputs[0]
+        raw_text = (output.text or "").strip()
+        token_ids = list(output.token_ids or [])
+        tokens = self.tokenizer.convert_ids_to_tokens(token_ids) if token_ids else []
+        tokens = [_clean_token_for_logging(tok) for tok in tokens]
+
+        token_logprobs: List[Dict[str, Any]] = []
+        if output.logprobs:
+            for step_logprobs, token_id in zip(output.logprobs, token_ids):
+                chosen = None
+                if step_logprobs and token_id in step_logprobs:
+                    chosen = step_logprobs[token_id]
+                token_logprobs.append(
+                    {
+                        "decoded_token": self.tokenizer.decode(
+                            [token_id], clean_up_tokenization_spaces=False
+                        ),
+                        "token_id": int(token_id),
+                        "logprob": float(getattr(chosen, "logprob", 0.0)) if chosen else 0.0,
+                        "top_logprobs": [],
+                    }
+                )
+
+        cleaned_text = _postprocess_generated_text(
+            raw_text=raw_text,
+            token_strings=tokens,
+            prompt=prompt,
+        )
+        return LLMGeneration(
+            text=cleaned_text,
+            tokens=tokens,
+            token_logprobs=token_logprobs,
+            raw_response={
+                "prompt": prompt_text,
+                "request_id": request_id,
+                "finish_reason": getattr(output, "finish_reason", None),
+                "raw_text_preview": raw_text[:1000],
+                "backend": "vllm",
+            },
+        )
+
+    def unload(self) -> None:
+        """Release the vLLM engine and free GPU memory."""
+        llm = getattr(self, "llm", None)
+        if llm is not None:
+            # Best-effort shutdown across vLLM versions.
+            for attr in ("llm_engine", "engine", "model_executor"):
+                engine = getattr(llm, attr, None)
+                if engine is None:
+                    continue
+                for method_name in ("shutdown", "destroy", "stop"):
+                    method = getattr(engine, method_name, None)
+                    if callable(method):
+                        try:
+                            method()
+                        except Exception:
+                            pass
+            del self.llm
+        self.llm = None  # type: ignore[assignment]
+        self.tokenizer = None  # type: ignore[assignment]
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+
+
+def _render_prompt_text(tokenizer, payload: PromptPayload) -> str:
+    """Render a PromptPayload to plain text for generation backends."""
+    if payload.mode == "chat":
+        messages = payload.content if isinstance(payload.content, list) else []
+        if hasattr(tokenizer, "apply_chat_template") and getattr(tokenizer, "chat_template", None):
+            return tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        rendered = []
+        for message in messages:
+            role = message.get("role", "user").capitalize()
+            rendered.append(f"{role}: {message.get('content', '')}".strip())
+        rendered.append("Assistant:")
+        return "\n".join(rendered).strip()
+    return str(payload.content)
+
+
 def _render_prompt_and_tokenize(tokenizer, payload: PromptPayload, device) -> tuple[str, Dict[str, torch.Tensor]]:
     """
     Render prompt text and tokenize it.
@@ -158,28 +363,127 @@ def _render_prompt_and_tokenize(tokenizer, payload: PromptPayload, device) -> tu
     For chat prompts, prefer tokenizer chat templates if available.
     Otherwise fall back to the legacy 'Role: content' rendering.
     """
-    if payload.mode == "chat":
-        messages = payload.content if isinstance(payload.content, list) else []
-
-        if hasattr(tokenizer, "apply_chat_template") and getattr(tokenizer, "chat_template", None):
-            prompt_text = tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        else:
-            rendered = []
-            for message in messages:
-                role = message.get("role", "user").capitalize()
-                rendered.append(f"{role}: {message.get('content', '')}".strip())
-            rendered.append("Assistant:")
-            prompt_text = "\n".join(rendered).strip()
-    else:
-        prompt_text = str(payload.content)
-
+    prompt_text = _render_prompt_text(tokenizer, payload)
     inputs = tokenizer(prompt_text, return_tensors="pt")
     inputs = {key: value.to(device) for key, value in inputs.items()}
     return prompt_text, inputs
+
+
+def _detect_hf_quant_method(model_id: str) -> Optional[str]:
+    """Read quantization_config.quant_method from a Hugging Face model config."""
+    try:
+        from transformers import AutoConfig
+    except ImportError:
+        return None
+    try:
+        config = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
+    except Exception:
+        return None
+    quant_cfg = getattr(config, "quantization_config", None)
+    if quant_cfg is None:
+        return None
+    if isinstance(quant_cfg, dict):
+        method = quant_cfg.get("quant_method") or quant_cfg.get("quantization_method")
+    else:
+        method = getattr(quant_cfg, "quant_method", None) or getattr(
+            quant_cfg, "quantization_method", None
+        )
+    if not method:
+        return None
+    return str(method).strip().lower()
+
+
+def _resolve_vllm_quantization(
+    *,
+    requested: Optional[str],
+    model_id: str,
+) -> Dict[str, Any]:
+    """
+    Build vLLM quantization kwargs.
+
+    Pre-quantized checkpoints (e.g. openai/gpt-oss-20b with mxfp4) must not be
+    loaded with a conflicting runtime method like bitsandbytes.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    model_method = _detect_hf_quant_method(model_id)
+    requested = (requested or "").strip().lower() or None
+
+    # Explicit "auto"/"none": trust the model config.
+    if requested in {None, "auto", "none"}:
+        chosen = model_method
+    else:
+        requested_vllm = {
+            "q8": "bitsandbytes",
+            "mxfp4": "mxfp4",
+            "fp4": "mxfp4",
+            "fp8": "fp8",
+            "awq": "awq",
+            "gptq": "gptq",
+        }.get(requested, requested)
+
+        if model_method and model_method != requested_vllm:
+            logger.warning(
+                "Model '%s' is quantized with '%s', but config requested '%s'. "
+                "Using the model-native method '%s'.",
+                model_id,
+                model_method,
+                requested,
+                model_method,
+            )
+            chosen = model_method
+        else:
+            chosen = requested_vllm
+
+    if not chosen:
+        return {}
+
+    supported = _vllm_supported_quant_methods()
+    if supported is not None and chosen not in supported:
+        raise ValueError(
+            f"Model '{model_id}' requires quantization='{chosen}', but the "
+            f"installed vLLM does not support it. Supported methods: "
+            f"{', '.join(sorted(supported))}. "
+            "Pick a model without that scheme, set backend: hf if Transformers "
+            "supports it, or upgrade vLLM (may require a newer NVIDIA driver)."
+        )
+
+    if chosen == "bitsandbytes":
+        return {
+            "quantization": "bitsandbytes",
+            "load_format": "bitsandbytes",
+        }
+    return {"quantization": chosen}
+
+
+def _vllm_supported_quant_methods() -> Optional[set[str]]:
+    try:
+        from vllm.model_executor.layers.quantization import QUANTIZATION_METHODS
+
+        return set(QUANTIZATION_METHODS)
+    except Exception:
+        return None
+
+
+def _build_quantization_config(quantization: Optional[str]):
+    """Return a transformers BitsAndBytesConfig for q8, else None."""
+    if quantization != "q8":
+        return None
+    try:
+        from transformers import BitsAndBytesConfig
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError(
+            "quantization='q8' requires transformers BitsAndBytesConfig support"
+        ) from exc
+    try:
+        import bitsandbytes  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "quantization='q8' requires the bitsandbytes package. "
+            "Install it with: pip install bitsandbytes"
+        ) from exc
+    return BitsAndBytesConfig(load_in_8bit=True)
 
 
 def _resolve_dtype(configured: Optional[str], device: str) -> torch.dtype:

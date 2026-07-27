@@ -8,3 +8,9 @@
 /scripts/__pycache__
 /src/collu_bench.egg-info
 /src/collu_bench/__pycache__
+
+# OpenAI credentials — never commit real keys
+/secrets/openai_api_key
+/secrets/*.key
+.env
+.env.*

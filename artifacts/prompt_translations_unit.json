@@ -1,0 +1,10 @@
+{
+  "453be6affa0c2ae314b7e9835614d10fe0a1b51305031cca20763bf2a0064d61": {
+    "prompt": "func truncateNumber(number float64) float64 {\n  // return decimal part\n}",
+    "answer": "func truncateNumber(number float64) float64 { return math.Mod(number, 1.0) }"
+  },
+  "5deee12a3918ff9e19155c384169af962e2d785bc75b6a03267cdeb8ee8c28d1": {
+    "prompt": "func truncateNumber(number float64) float64 {}",
+    "answer": "func ok() {}"
+  }
+}

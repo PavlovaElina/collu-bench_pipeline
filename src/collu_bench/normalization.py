@@ -123,6 +123,14 @@ class RacketProgramNormalizer(ProgramNormalizer):
         )
 
 
+class IdentityNormalizer(ProgramNormalizer):
+    """No-op normalizer used for languages without a dedicated grammar."""
+
+    def normalize(self, code: str) -> NormalizedProgram:
+        text = code or ""
+        return NormalizedProgram(text, list(range(len(text))))
+
+
 class NormalizerRegistry:
     """Cache of normalizers keyed by language."""
 
@@ -130,12 +138,19 @@ class NormalizerRegistry:
         self._cache: Dict[str, ProgramNormalizer] = {}
 
     def for_language(self, language: str) -> ProgramNormalizer:
-        if language not in self._cache:
-            if language == "racket":
-                self._cache[language] = RacketProgramNormalizer()
+        key = (language or "").strip().lower()
+        if key not in self._cache:
+            if key == "racket":
+                self._cache[key] = RacketProgramNormalizer()
+            elif key in {"python", "java"}:
+                self._cache[key] = TreeSitterNormalizer(key)
             else:
-                self._cache[language] = TreeSitterNormalizer(language)
-        return self._cache[language]
+                # Arbitrary target languages may lack tree-sitter support.
+                try:
+                    self._cache[key] = TreeSitterNormalizer(key)
+                except Exception:
+                    self._cache[key] = IdentityNormalizer()
+        return self._cache[key]
 
 
 def _reserved_identifiers(language: str) -> set[str]:

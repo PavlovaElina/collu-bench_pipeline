@@ -1,0 +1,76 @@
+{
+  "racket_pipeline_hybrid": {
+    "HumanEval/2": [
+      {
+        "original": "#lang racket\n(define (truncate_number n)\n  (if (>= n 1)\n      (- n (floor n))\n      0))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (if (>= var_2 1) (- var_2 (floor var_2)) 0))\n"
+      }
+    ],
+    "HumanEval/4": [
+      {
+        "original": "#lang racket\n\n(define (mean_absolute_deviation lst)\n  (let* ((mean (/ (apply + lst) (length lst)))\n         (diffs (map (lambda (x) (abs (- x mean))) lst)))\n    (/ (apply + diffs) (length diffs))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (let* ((var_3 (/ (apply + var_2) (length var_2))) (var_4 (map (lambda (var_5) (abs (- var_5 var_3))) var_2))) (/ (apply + var_4) (length var_4))))\n"
+      }
+    ],
+    "HumanEval/5": [
+      {
+        "original": "#lang racket\n(define (intersperse lst delimiter)\n  (if (null? lst)\n      '()\n      (cons (car lst)\n            (if (null? (cdr lst))\n                '()\n                (cons delimiter (intersperse (cdr lst) delimiter))))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2 var_3) (if (null? var_2) '() (cons (car var_2) (if (null? (cdr var_2)) '() (cons var_3 (var_1 (cdr var_2) var_3))))))\n"
+      }
+    ],
+    "HumanEval/7": [
+      {
+        "original": "#lang racket\n\n(define (filter_by_substring lst substr)\n  (filter (lambda (str) (string-contains? str substr)) lst))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2 var_3) (filter (lambda (var_4) (var_5 var_4 var_3)) var_2))\n"
+      }
+    ],
+    "HumanEval/9": [
+      {
+        "original": "#lang racket\n\n(define (rolling_max lst)\n  (letrec ((helper (lambda (lst max_lst max_elem)\n                     (cond ((null? lst) max_lst)\n                           (else (helper (cdr lst) (cons (max max_elem (car lst)) max_lst) (max max_elem (car lst))))))))\n    (reverse (helper lst '() (if (null? lst) '() (car lst))))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (letrec ((var_3 (lambda (var_2 var_4 var_5) (cond ((null? var_2) var_4) (else (var_3 (cdr var_2) (cons (max var_5 (car var_2)) var_4) (max var_5 (car var_2)))))))) (reverse (var_3 var_2 '() (if (null? var_2) '() (car var_2))))))\n"
+      }
+    ],
+    "HumanEval/10": [
+      {
+        "original": "#lang racket\n\n(define (make_palindrome s)\n  (let* ((len (string-length s))\n         (suffix (find-suffix s len))\n         (prefix (substring s 0 (- len (string-length suffix)))))\n    (string-append s (reverse-string prefix))))\n\n(define (find-suffix s len)\n  (let loop ((i len))\n    (if (or (= i 0) (palindrome? (substring s 0 i)))\n      (substring s 0 i)\n      (loop (- i 1)))))\n\n(define (palindrome? s)\n  (let ((len (string-length s)))\n    (or (= len 0) (= len 1)\n        (and (char=? (string-ref s 0) (string-ref s (- len 1)))\n             (palindrome? (substring s 1 (- len 1)))))))\n\n(define (reverse-string s)\n  (list->string (reverse (string->list s))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (let* ((var_3 (string-length var_2)) (var_4 (var_5 var_2 var_3)) (var_6 (substring var_2 0 (- var_3 (string-length var_4))))) (string-append var_2 (var_7 var_6)))) (define (var_5 var_2 var_3) (let var_8 ((var_9 var_3)) (if (or (= var_9 0) (var_10 (substring var_2 0 var_9))) (substring var_2 0 var_9) (var_8 (- var_9 1))))) (define (var_10 var_2) (let ((var_3 (string-length var_2))) (or (= var_3 0) (= var_3 1) (and (var_11 (string-ref var_2 0) (string-ref var_2 (- var_3 1))) (var_10 (substring var_2 1 (- var_3 1))))))) (define (var_7 var_2) (list->string (reverse (string->list var_2))))\n"
+      }
+    ],
+    "HumanEval/11": [
+      {
+        "original": "#lang racket\n\n(define (string_xor a b)\n  (let ([len (min (string-length a) (string-length b))])\n    (apply string-append\n           (map (lambda (x y)\n                  (if (equal? x y)\n                      \"0\"\n                      \"1\"))\n                (take (string->list a) len)\n                (take (string->list b) len)))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2 var_3) (let ([var_4 (min (string-length var_2) (string-length var_3))]) (apply string-append (map (lambda (var_5 var_6) (if (equal? var_5 var_6) \"0\" \"1\")) (take (string->list var_2) var_4) (take (string->list var_3) var_4)))))\n"
+      }
+    ],
+    "HumanEval/12": [
+      {
+        "original": "#lang racket\n\n(define (longest lst)\n  (if (null? lst)\n      '()\n      (let ((max-len (apply max (map string-length lst))))\n        (car (filter (lambda (x) (= (string-length x) max-len)) lst)))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (if (null? var_2) '() (let ((var_3 (apply max (map string-length var_2)))) (car (filter (lambda (var_4) (= (string-length var_4) var_3)) var_2)))))\n"
+      }
+    ],
+    "HumanEval/13": [
+      {
+        "original": "#lang racket\n\n(define (greatest_common_divisor a b)\n  (cond ((= b 0) a)\n        (else (greatest_common_divisor b (modulo a b)))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2 var_3) (cond ((= var_3 0) var_2) (else (var_1 var_3 (modulo var_2 var_3)))))\n"
+      }
+    ],
+    "HumanEval/14": [
+      {
+        "original": "#lang racket\n\n(define (all_prefixes str)\n  (let ((len (string-length str)))\n    (let prefix-loop ((i 1))\n      (if (> i len)\n          '()\n          (cons (substring str 0 i) (prefix-loop (+ i 1)))))))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (let ((var_3 (string-length var_2))) (let var_4 ((var_5 1)) (if (> var_5 var_3) '() (cons (substring var_2 0 var_5) (var_4 (+ var_5 1)))))))\n"
+      }
+    ],
+    "HumanEval/15": [
+      {
+        "original": "#lang racket\n\n(define (string_sequence n)\n  (if (= n 0)\n      \"0\"\n      (string-join (map number->string (range 0 (+ n 1))) \" \")))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2) (if (= var_2 0) \"0\" (var_3 (map var_4 (var_5 0 (+ var_2 1))) \" \")))\n"
+      }
+    ],
+    "HumanEval/18": [
+      {
+        "original": "#lang racket\n(define (how_many_times s sub)\n  (letrec ([count (lambda (s sub c)\n                    (cond\n                      [(< (string-length s) (string-length sub)) c]\n                      [(string=? (substring s 0 (string-length sub)) sub)\n                       (count (substring s 1 (string-length s)) sub (+ c 1))]\n                      [else (count (substring s 1 (string-length s)) sub c)]))])\n    (count s sub 0)))\n",
+        "normalized": "#lang racket\n\n(define (var_1 var_2 var_3) (letrec ([var_4 (lambda (var_2 var_3 var_5) (cond [(< (string-length var_2) (string-length var_3)) var_5] [(var_6 (substring var_2 0 (string-length var_3)) var_3) (var_4 (substring var_2 1 (string-length var_2)) var_3 (+ var_5 1))] [else (var_4 (substring var_2 1 (string-length var_2)) var_3 var_5)]))]) (var_4 var_2 var_3 0)))\n"
+      }
+    ]
+  }
+}
